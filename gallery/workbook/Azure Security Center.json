@@ -119,6 +119,12 @@
 					"author": "Microsoft",
 					"name": "Defender CSPM",
 					"description": "Gain visibility and insights into your cloud security posture"
+				},
+				{
+					"id": "Workbooks/Azure Security Center/Defender for Storage Price Estimation",
+					"author": "billmcilhargey",
+					"name": "Defender for Storage Price Estimation",
+					"description": "Estimate Defender for Storage activity monitoring, upload malware scanning, and associated service costs across selected subscriptions and storage accounts"
 				}
 			]
 		}
