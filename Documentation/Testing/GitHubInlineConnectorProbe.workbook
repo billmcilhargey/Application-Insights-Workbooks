@@ -1,0 +1,209 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## GitHub connector inline lookup test\nUse this in a **new, unsaved Azure workbook**. Select the subscription with your GitHub connectors. This samples at most two connectors and only reads configuration. Try **Alternative (url)** first, then compare **Previous (relativeUrl)**. The first two tables do not depend on the batch. The batch response and inline preview are separate so a stalled merge does not hide the response. Blank settings do not mean Disabled."
+      },
+      "name": "Instructions"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "1a454f66-4230-4cc9-b72c-3306a2c03578",
+            "version": "KqlParameterItem/1.0",
+            "name": "Subscriptions",
+            "type": 6,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "value": [],
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "includeAll": false,
+              "showDefault": false
+            }
+          },
+          {
+            "id": "f6604565-2a0c-47d3-8b71-ee4636ce1df8",
+            "version": "KqlParameterItem/1.0",
+            "name": "ProbeBatchMode",
+            "label": "Batch request format",
+            "type": 10,
+            "isRequired": true,
+            "value": "url",
+            "typeSettings": { "additionalResourceOptions": [] },
+            "jsonData": "[{\"value\":\"relativeUrl\",\"label\":\"Previous (relativeUrl)\"},{\"value\":\"url\",\"label\":\"Alternative (url)\"}]"
+          }
+        ],
+        "style": "above",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "Probe scope and format"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "resources\n| where type =~ \"microsoft.security/securityconnectors\"\n| where tostring(properties.environmentName) =~ \"Github\" or tostring(properties.environmentData.environmentType) =~ \"GithubScope\"\n| top 2 by id asc\n| project ConnectorId = id, subscriptionId, resourceGroup, location, BatchKey = tostring(toguid(hash_md5(tolower(id))))",
+        "size": 0,
+        "title": "1. GitHub connectors (Resource Graph)",
+        "noDataMessage": "No GitHub connectors found. Select the subscription containing the connectors.",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": ["{Subscriptions}"],
+        "gridSettings": {
+          "formatters": [
+            { "columnMatch": "ConnectorId", "formatter": 13, "formatOptions": { "linkTarget": "Resource", "showIcon": true } },
+            { "columnMatch": "subscriptionId", "formatter": 15, "formatOptions": { "showIcon": true } },
+            { "columnMatch": "location", "formatter": 17 },
+            { "columnMatch": "BatchKey", "formatter": 5 }
+          ],
+          "labelSettings": [
+            { "columnId": "ConnectorId", "label": "Connector ID" },
+            { "columnId": "subscriptionId", "label": "Subscription ID" },
+            { "columnId": "resourceGroup", "label": "Resource group" },
+            { "columnId": "location", "label": "Location" }
+          ]
+        }
+      },
+      "name": "probeGitHubConnectors"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "8b6b7c78-f0f3-46cc-9d88-16d22105d1b7",
+            "version": "KqlParameterItem/1.0",
+            "name": "ProbeFirstConnector",
+            "type": 1,
+            "query": "resources\n| where type =~ \"microsoft.security/securityconnectors\"\n| where tostring(properties.environmentName) =~ \"Github\" or tostring(properties.environmentData.environmentType) =~ \"GithubScope\"\n| top 1 by id asc\n| project ConnectorId = id",
+            "isHiddenWhenLocked": true,
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "crossComponentResources": ["{Subscriptions}"],
+            "value": ""
+          },
+          {
+            "id": "29509c35-0c1d-4539-83fb-381842f415a8",
+            "version": "KqlParameterItem/1.0",
+            "name": "ProbeBatchBody",
+            "type": 1,
+            "query": "resources\n| where type =~ \"microsoft.security/securityconnectors\"\n| where tostring(properties.environmentName) =~ \"Github\" or tostring(properties.environmentData.environmentType) =~ \"GithubScope\"\n| top 2 by id asc\n| extend BatchKey = tostring(toguid(hash_md5(tolower(id)))), RequestPath = strcat(id, \"/devops/default?api-version=2025-03-01\")\n| extend Request = iff(\"{ProbeBatchMode}\" == \"url\", pack(\"httpMethod\", \"GET\", \"name\", BatchKey, \"url\", RequestPath), pack(\"httpMethod\", \"GET\", \"name\", BatchKey, \"relativeUrl\", RequestPath))\n| summarize ConnectorCount = count(), Requests = make_list(Request, 2)\n| project RequestBody = iff(ConnectorCount > 0, tostring(pack(\"requests\", Requests)), \"\")",
+            "isHiddenWhenLocked": true,
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "crossComponentResources": ["{Subscriptions}"],
+            "value": ""
+          }
+        ],
+        "style": "above",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources"
+      },
+      "name": "Probe request inputs"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"ARMEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GET\",\"path\":\"{ProbeFirstConnector}/devops/default\",\"urlParams\":[{\"key\":\"api-version\",\"value\":\"2025-03-01\"}],\"batchDisabled\":false,\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"tablePath\":\"$.properties.agentlessConfiguration\",\"columns\":[{\"path\":\"$.agentlessEnabled\",\"columnid\":\"AgentlessScanning\"},{\"path\":\"$.scanners\",\"columnid\":\"ConfiguredScanners\"},{\"path\":\"$.agentlessAutoDiscovery\",\"columnid\":\"AgentlessAutoDiscovery\"},{\"path\":\"$.inventoryListType\",\"columnid\":\"ManualScopeMode\"}]}}]}",
+        "size": 0,
+        "title": "2. Direct ARM read (first connector, automatic)",
+        "noDataMessage": "The direct read did not return agentless configuration. Check whether the connector has settings and whether you have read access.",
+        "queryType": 12,
+        "gridSettings": {
+          "labelSettings": [
+            { "columnId": "AgentlessScanning", "label": "Agentless code scanning" },
+            { "columnId": "ConfiguredScanners", "label": "Configured scanners" },
+            { "columnId": "AgentlessAutoDiscovery", "label": "Automatic repository discovery" },
+            { "columnId": "ManualScopeMode", "label": "Manual scope mode" }
+          ]
+        }
+      },
+      "conditionalVisibility": { "parameterName": "ProbeFirstConnector", "comparison": "isNotEqualTo", "value": "" },
+      "name": "probeGitHubDirect"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "**No batch request yet.** If connector rows appear in table 1 but tables 3 and 4 remain absent, the Resource Graph parameter that builds the batch did not resolve. The separate Cloud Shell probe can check the request builder."
+      },
+      "conditionalVisibility": { "parameterName": "ProbeBatchBody", "comparison": "isEqualTo", "value": "" },
+      "name": "Probe no request message"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"ARMEndpoint/1.0\",\"data\":\"{{ProbeBatchBody:escapejson}}\",\"headers\":[],\"method\":\"POST\",\"path\":\"/batch\",\"urlParams\":[{\"key\":\"api-version\",\"value\":\"2020-06-01\"}],\"batchDisabled\":true,\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"tablePath\":\"$.responses[*]\",\"columns\":[{\"path\":\"$.name\",\"columnid\":\"BatchKey\"},{\"path\":\"$.httpStatusCode\",\"columnid\":\"LookupStatus\"},{\"path\":\"$.content.error.code\",\"columnid\":\"ErrorCode\"},{\"path\":\"$.content.properties.agentlessConfiguration.agentlessEnabled\",\"columnid\":\"AgentlessScanning\"},{\"path\":\"$.content.properties.agentlessConfiguration.scanners\",\"columnid\":\"ConfiguredScanners\"},{\"path\":\"$.content.properties.agentlessConfiguration.agentlessAutoDiscovery\",\"columnid\":\"AgentlessAutoDiscovery\"},{\"path\":\"$.content.properties.agentlessConfiguration.inventoryListType\",\"columnid\":\"ManualScopeMode\"}]}}]}",
+        "size": 0,
+        "title": "3. Batch response (before merging)",
+        "noDataMessage": "No batch rows were projected. The Cloud Shell probe can distinguish an HTTP error, an async response, or a different JSON shape.",
+        "queryType": 12,
+        "gridSettings": {
+          "formatters": [{ "columnMatch": "BatchKey", "formatter": 5 }],
+          "labelSettings": [
+            { "columnId": "LookupStatus", "label": "HTTP status per connector" },
+            { "columnId": "ErrorCode", "label": "ARM error" },
+            { "columnId": "AgentlessScanning", "label": "Agentless code scanning" },
+            { "columnId": "ConfiguredScanners", "label": "Configured scanners" },
+            { "columnId": "AgentlessAutoDiscovery", "label": "Automatic repository discovery" },
+            { "columnId": "ManualScopeMode", "label": "Manual scope mode" }
+          ]
+        }
+      },
+      "conditionalVisibility": { "parameterName": "ProbeBatchBody", "comparison": "isNotEqualTo", "value": "" },
+      "name": "probeGitHubBatch"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"Merge/1.0\",\"merges\":[{\"id\":\"62762838-a459-48be-9d0a-8192f41c4485\",\"mergeType\":\"leftouter\",\"leftTable\":\"probeGitHubConnectors\",\"rightTable\":\"probeGitHubBatch\",\"leftColumn\":\"BatchKey\",\"rightColumn\":\"BatchKey\"}],\"projectRename\":[{\"originalName\":\"[probeGitHubConnectors].ConnectorId\",\"mergedName\":\"ConnectorId\",\"fromId\":\"62762838-a459-48be-9d0a-8192f41c4485\"},{\"originalName\":\"[probeGitHubConnectors].subscriptionId\",\"mergedName\":\"subscriptionId\",\"fromId\":\"62762838-a459-48be-9d0a-8192f41c4485\"},{\"originalName\":\"[probeGitHubConnectors].resourceGroup\",\"mergedName\":\"resourceGroup\",\"fromId\":\"62762838-a459-48be-9d0a-8192f41c4485\"},{\"originalName\":\"[probeGitHubConnectors].location\",\"mergedName\":\"location\",\"fromId\":\"62762838-a459-48be-9d0a-8192f41c4485\"},{\"originalName\":\"[probeGitHubBatch].LookupStatus\",\"mergedName\":\"LookupStatus\",\"fromId\":\"62762838-a459-48be-9d0a-8192f41c4485\"},{\"originalName\":\"[probeGitHubBatch].AgentlessScanning\",\"mergedName\":\"AgentlessScanning\",\"fromId\":\"62762838-a459-48be-9d0a-8192f41c4485\"},{\"originalName\":\"[probeGitHubBatch].ConfiguredScanners\",\"mergedName\":\"ConfiguredScanners\",\"fromId\":\"62762838-a459-48be-9d0a-8192f41c4485\"},{\"originalName\":\"[probeGitHubBatch].AgentlessAutoDiscovery\",\"mergedName\":\"AgentlessAutoDiscovery\",\"fromId\":\"62762838-a459-48be-9d0a-8192f41c4485\"},{\"originalName\":\"[probeGitHubBatch].ManualScopeMode\",\"mergedName\":\"ManualScopeMode\",\"fromId\":\"62762838-a459-48be-9d0a-8192f41c4485\"},{\"originalName\":\"[probeGitHubConnectors].BatchKey\"},{\"originalName\":\"[probeGitHubBatch].BatchKey\"},{\"originalName\":\"[probeGitHubBatch].ErrorCode\"}]}",
+        "size": 0,
+        "title": "4. Inline preview (without selecting a row)",
+        "noDataMessage": "The merge returned no rows. Check whether the first and third tables load on their own.",
+        "queryType": 7,
+        "gridSettings": {
+          "formatters": [
+            { "columnMatch": "ConnectorId", "formatter": 13, "formatOptions": { "linkTarget": "Resource", "showIcon": true } },
+            { "columnMatch": "subscriptionId", "formatter": 15, "formatOptions": { "showIcon": true } },
+            { "columnMatch": "location", "formatter": 17 },
+            { "columnMatch": "AgentlessScanning|AgentlessAutoDiscovery", "formatter": 18, "formatOptions": {
+              "thresholdsOptions": "colors",
+              "thresholdsGrid": [
+                { "operator": "==", "thresholdValue": "Enabled", "representation": "green", "text": "Enabled" },
+                { "operator": "==", "thresholdValue": "Disabled", "representation": "redBright", "text": "Disabled" },
+                { "operator": "==", "thresholdValue": "NotApplicable", "representation": "gray", "text": "Not applicable" },
+                { "operator": "Default", "thresholdValue": null, "representation": "gray", "text": "{0}" }
+              ]
+            }}
+          ],
+          "labelSettings": [
+            { "columnId": "ConnectorId", "label": "Connector ID" },
+            { "columnId": "subscriptionId", "label": "Subscription ID" },
+            { "columnId": "resourceGroup", "label": "Resource group" },
+            { "columnId": "location", "label": "Location" },
+            { "columnId": "LookupStatus", "label": "HTTP status per connector" },
+            { "columnId": "AgentlessScanning", "label": "Agentless code scanning" },
+            { "columnId": "ConfiguredScanners", "label": "Configured scanners" },
+            { "columnId": "AgentlessAutoDiscovery", "label": "Automatic repository discovery" },
+            { "columnId": "ManualScopeMode", "label": "Manual scope mode" }
+          ]
+        }
+      },
+      "conditionalVisibility": { "parameterName": "ProbeBatchBody", "comparison": "isNotEqualTo", "value": "" },
+      "name": "probeGitHubInline"
+    }
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
